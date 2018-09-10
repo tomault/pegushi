@@ -300,7 +300,6 @@ Arguments are:
                 self.tick >= self.max_steps, {})
 
     def render(self, mode = 'human'):
-        # TODO: Replace 'human' mode with a window with pretty graphics
         if mode == 'human':
             return self._render_human()
         elif mode == 'ansi':
