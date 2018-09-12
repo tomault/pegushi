@@ -3,6 +3,7 @@ Cell grids for generic gridworlds
 """
 
 from pegushi_gym.envs.grid.generic.cells import LimboCell
+import numpy as np
 
 class _Direction:
     def __init__(self, name, dx, dy):
@@ -27,14 +28,22 @@ class _Direction:
     
     def next_cell(self, grid, x, y):
         return grid[self.coordindates(x, y)]
-        
+
+class Directions:
+    NORTH = _Direction("NORTH", 0, 1)
+    EAST = _Direction("EAST", 1, 0)
+    SOUTH = _Direction("SOUTH", 0, -1)
+    WEST = _Direction("WEST", -1, 0)
+
+    ALL = (NORTH, EAST, SOUTH, WEST)
+    
 class Grid:
     """Basic grid implementation for generic gridworld."""
     def __init__(self, cells, boundary, limbo = LimboCell()):
         """
   * cells:     np.ndarray; Cell grid, organized with rows along the y-axis and
-               columns along the x-axis.  Values need to implement the "Cell"
-               concept.
+               columns along the x-axis.  The cell at (0, 0) is the southeast
+               corner.  Values need to implement the "Cell" concept.
   * boundary:  cells.Cell or equivalent; Cell that surrounds the grid.
   * limbo:     cells.Cell or equivalent; Cell that represents "nowhere"
                Objects are placed here when they aren't located on the grid.
@@ -81,7 +90,23 @@ class Grid:
 
     def __getitem__(self, coordinates):
         if self.in_bounds(*coordinates):
-            return self._cells[coordinates]
+            return self._cells[coordinates[1], coordinates[0]]
         else:
             return self._boundary
-        
+
+    @classmethod
+    def homogenous(cls, width, height, cell, boundary, limbo = LimboCell()):
+        cells = np.ndarray((height, width), dtype = np.object)
+        for y in xrange(0, layout.shape[0]):
+            for x in xrange(0, layout.shape[1]):
+                cells[y, x] = cell.clone(x, y)
+        return cls(cells, boundary, limbo)
+
+    @classmethod
+    def from_layout(cls, layout, create_cell, boundary, limbo = LimboCell()):
+        cells = np.ndarray(layout.shape, dtype = np.object)
+        for y in xrange(0, layout.shape[0]):
+            for x in xrange(0, layout.shape[1]):
+                cells[y, x] = create_cell(layout[y, x], x, y)
+        return cls(cells, boundary, limbo)
+
