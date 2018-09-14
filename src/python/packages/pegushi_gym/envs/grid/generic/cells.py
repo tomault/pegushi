@@ -61,19 +61,19 @@ class Cell:
         return self._call_objects(Object.wait_actor, env, state,
                                   initial_reward, actor)
 
-    def exit_actor(self, env, state, initial_reward, actor, direction):
-        outcome, reward = self._call_objects(Object.exit_actor, env, state,
-                                             initial_reward, actor, direction)
+    def exit_thing(self, env, state, initial_reward, thing, direction):
+        outcome, reward = self._call_objects(Object.exit_thing, env, state,
+                                             initial_reward, thing, direction)
         if outcome == Outcomes.DONE:
             return outcome, reward
 
         destination = direction.next_cell(state.grid, self._x, self._y)
-        return destination.enter_actor(env, state, reward, actor,
+        return destination.enter_thing(env, state, reward, thing,
                                        self, direction.opposite)
 
-    def enter_actor(self, env, state, initial_reward, actor, origin,
+    def enter_thing(self, env, state, initial_reward, actor, origin,
                     direction):
-        outcome, reward = self._call_objects(Object.enter_actor, env, state,
+        outcome, reward = self._call_objects(Object.enter_thing, env, state,
                                              initial_reward, actor, origin,
                                              direction)
         if outcome == Outcomes.DONE:
@@ -93,9 +93,31 @@ class Cell:
         return self._call_objects(Object.drop, env, state, initial_reward,
                                   actor, target, skip = target)
 
-    def push(sef, env, state, initial_reward, actor, target):
-        pass
+    def push(sef, env, state, initial_reward, actor, target, direction):
+        # Save the current state, then move the actor into the target's
+        # cell, followed by the target into the neighboring cell indicated
+        # by direction.  If the actor or target fails to move, restore the
+        # original state and report failure.
+        saved_state = env.save_state()
 
+        outcome, reward = actor.cell.exit_thing(env, state, initial_reward,
+                                                actor, direction)
+        if outcome == Outcomes.NOT_DONE:
+            # Actor failed to move
+            return Outcomes.DONE, env.reward_map.get('MOVE:NO_EXIT', 0.0)
+        if not actor.at(*direction.next_cell(state.grid, target.x, target.y)):
+            # Actor did not make it into the target cell, so leave object
+            # where it is
+            return outcome, reward
+
+        outcome, reward = target.cell.exit_thing(env, state, reward,
+                                                 target, direction)
+        if (outcome == Outcomes.NOT_DONE) or target.at(actor.x, actor.y):
+            # Object didn't move.  Restore original state and exit
+            env.restore_state(saved_state)
+            return Outcomes.DONE, env.reward_map.get('MOVE:BLOCKED')
+        return outcomes.DONE, env.reward_map.get('MOVE')
+            
     #### Manipulators ###
     def put(self, thing):
         return self._PUT_HANDLER_MAP[thing.type](thing)
@@ -147,27 +169,6 @@ class Cell:
             self._movable_object = obj
         self._inventory.append(obj)
 
-    def _remove_agent(self, agent):
-        if self._agent == agent:
-            self._inventory.remove(self._agent)
-            self._agent = None
-
-    def _remove_cell(self, cell):
-        return
-
-    def _remove_actor(self, actor):
-        try:
-            self._inventory.remove(actor)
-        except ValueError:
-            return
-
-    def _remove_object(self, obj):
-        if obj == self._portable_object:
-            self._portable_object = None
-        if obj == self._movable_object:
-            self._movable_object = None
-        if 
-
 Cell._PUT_HANDLER_MAP = { ThingType.AGENT : Cell._put_agent,
                           ThingType.ACTOR : Cell._put_actor,
                           ThingType.CELL : Cell._put_cell,
@@ -176,7 +177,59 @@ Cell._PUT_HANDLER_MAP = { ThingType.AGENT : Cell._put_agent,
 class WallCell(Cell):
     """Cell type representing a wall.  Actors cannot enter this cell and
 it cannot contain any objects."""
-    pass
+    def wait_actor(self, env, state, initial_reward, actor):
+        # Nothing should be inside a wall
+        return Outcomes.NOT_DONE, initial_reward
+
+    def exit_thing(self, env, state, initial_reward, thing, direction):
+        # Neither agents nor actors should be inside a wall, so fail an
+        # exit attempt.
+        return Outcomes.NOT_DONE, initial_reward
+
+    def enter_thing(self, env, state, initial_reward, actor, origin,
+                    direction):
+        # Nothing can enter a wall
+        return Outcomes.NOT_DONE, initial_reward
+
+    def get(self, env, state, initial_reward, actor, target):
+        # Can't drop an object inside a wall
+        return Outcomes.DONE, initial_reward
+
+    def drop(self, env, state, initial_reward, actor, target):
+        return Outcomes.DONE, initial_reward
+
+    def push(sef, env, state, initial_reward, actor, target, direction):
+        # Save the current state, then move the actor into the target's
+        # cell, followed by the target into the neighboring cell indicated
+        # by direction.  If the actor or target fails to move, restore the
+        # original state and report failure.
+        saved_state = env.save_state()
+
+        outcome, reward = actor.cell.exit_thing(env, state, initial_reward,
+                                                actor, direction)
+        if outcome == Outcomes.NOT_DONE:
+            # Actor failed to move
+            return Outcomes.DONE, env.reward_map.get('MOVE:NO_EXIT', 0.0)
+        if not actor.at(*direction.next_cell(state.grid, target.x, target.y)):
+            # Actor did not make it into the target cell, so leave object
+            # where it is
+            return outcome, reward
+
+        outcome, reward = target.cell.exit_thing(env, state, reward,
+                                                 target, direction)
+        if (outcome == Outcomes.NOT_DONE) or target.at(actor.x, actor.y):
+            # Object didn't move.  Restore original state and exit
+            env.restore_state(saved_state)
+            return Outcomes.DONE, env.reward_map.get('MOVE:BLOCKED')
+        return outcomes.DONE, env.reward_map.get('MOVE')
+            
+    #### Manipulators ###
+    def put(self, thing):
+        raise ValueError('Cannot put anything into a wall')
+
+    def remove(self, thing):
+        return
+
 
 class LimboCell(Cell):
     """Basic implementation of "limbo," a cell that represents "nowhere."

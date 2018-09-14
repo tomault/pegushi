@@ -1,5 +1,7 @@
 """Implementation of the generic gridworld environment."""
 
+import cPickle
+
 class GenericGridEnvironment:
     def __init__(self, state, rng, max_steps = None):
         """
@@ -43,6 +45,9 @@ starting state, goal state and so on."""
         self.tick = 0
 
         self._renderers = { }
+
+        self.state_space = state.state_space
+        self.action_space = state.agent.action_space
 
     @property
     def state(self):
@@ -91,6 +96,12 @@ starting state, goal state and so on."""
         for renderer in self._renderers.itervalues():
             renderer.close()
         self._renderers = { }
+
+    def save_state(self):
+        return cPickle.dumps(self.state, cPickle.HIGHEST_PROTOCOL)
+
+    def restore_state(self, saved):
+        self._state = cPickle.loads(saved)
         
     def _before_action(self, action):
         return action

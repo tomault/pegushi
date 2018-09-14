@@ -1,8 +1,7 @@
 """
 Implementation of agents for the generic gridworld.
 """
-from pegushi_gym.envs.grid.generic.grids import Directions
-from pegushi_gum.envs.grid.generic.core import Outcomes, ThingTypes
+from pegushi_gum.envs.grid.generic.core import Outcomes, ThingTypes, Directions
 import gym.spaces
 
 class Agent:

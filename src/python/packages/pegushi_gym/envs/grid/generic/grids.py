@@ -5,38 +5,6 @@ Cell grids for generic gridworlds
 from pegushi_gym.envs.grid.generic.cells import LimboCell
 import numpy as np
 
-class _Direction:
-    def __init__(self, name, dx, dy):
-        self._name = name
-        self._dx = dx
-        self._dy = dy
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def dx(self):
-        return self._dx
-
-    @property
-    def dy(self):
-        return self._dy
-
-    def coordinates(self, x, y):
-        return (x + self._dx, y + self._dy)
-    
-    def next_cell(self, grid, x, y):
-        return grid[self.coordindates(x, y)]
-
-class Directions:
-    NORTH = _Direction("NORTH", 0, 1)
-    EAST = _Direction("EAST", 1, 0)
-    SOUTH = _Direction("SOUTH", 0, -1)
-    WEST = _Direction("WEST", -1, 0)
-
-    ALL = (NORTH, EAST, SOUTH, WEST)
-    
 class Grid:
     """Basic grid implementation for generic gridworld."""
     def __init__(self, cells, boundary, limbo = LimboCell()):
