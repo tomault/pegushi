@@ -2,6 +2,9 @@
 Cells for generic gridworlds.
 """
 
+from pegushi_gym.envs.grid.generic.core import Outcomes, ThingTypes
+from pegushi_gym.envs.grid.generic.objects import Object
+
 class Cell:
     """Base cell implementation"""
     def __init__(self, grid, x, y):
@@ -105,14 +108,14 @@ class Cell:
         if outcome == Outcomes.NOT_DONE:
             # Actor failed to move
             return Outcomes.DONE, env.reward_map.get('MOVE:NO_EXIT', 0.0)
-        if not actor.at(*direction.next_cell(state.grid, target.x, target.y)):
+        if actor.cell != direction.next_cell(state.grid, target.x, target.y):
             # Actor did not make it into the target cell, so leave object
             # where it is
             return outcome, reward
 
         outcome, reward = target.cell.exit_thing(env, state, reward,
                                                  target, direction)
-        if (outcome == Outcomes.NOT_DONE) or target.at(actor.x, actor.y):
+        if (outcome == Outcomes.NOT_DONE) or (target.cell == actor.cell):
             # Object didn't move.  Restore original state and exit
             env.restore_state(saved_state)
             return Outcomes.DONE, env.reward_map.get('MOVE:BLOCKED')
@@ -132,6 +135,14 @@ class Cell:
                 self._movable_object = None
             self._inventory.remove(thing)
         
+    def set_grid(self, g):
+        self._grid = g
+
+    def clone(self, x, y):
+        new_cell = self.__class__(self._grid, x, y)
+        new_cell._clone_inventory(self._inventory)
+        return new_cell
+    
     def _call_objects(self, behavior, env, state, initial_reward, *args,
                       skip = None):
         outcome = Outcomes.NOT_DONE
@@ -169,6 +180,11 @@ class Cell:
             self._movable_object = obj
         self._inventory.append(obj)
 
+    def _clone_inventory(self, objects):
+        for cloned in (o.clone for o in objects):
+            self.put(cloned)
+            cloned.set_container(self)
+
 Cell._PUT_HANDLER_MAP = { ThingType.AGENT : Cell._put_agent,
                           ThingType.ACTOR : Cell._put_actor,
                           ThingType.CELL : Cell._put_cell,
@@ -177,6 +193,7 @@ Cell._PUT_HANDLER_MAP = { ThingType.AGENT : Cell._put_agent,
 class WallCell(Cell):
     """Cell type representing a wall.  Actors cannot enter this cell and
 it cannot contain any objects."""
+    
     def wait_actor(self, env, state, initial_reward, actor):
         # Nothing should be inside a wall
         return Outcomes.NOT_DONE, initial_reward
@@ -192,36 +209,17 @@ it cannot contain any objects."""
         return Outcomes.NOT_DONE, initial_reward
 
     def get(self, env, state, initial_reward, actor, target):
-        # Can't drop an object inside a wall
-        return Outcomes.DONE, initial_reward
+        # Nothing to take
+        return Outcomes.NOT_DONE, initial_reward
 
     def drop(self, env, state, initial_reward, actor, target):
-        return Outcomes.DONE, initial_reward
+        # Can't drop anything inside a wall.  Report DONE so caller
+        # doesn't try to drop anything
+        return Outcomes.DONE, env.reward_map.get('DROP:FULL')
 
     def push(sef, env, state, initial_reward, actor, target, direction):
-        # Save the current state, then move the actor into the target's
-        # cell, followed by the target into the neighboring cell indicated
-        # by direction.  If the actor or target fails to move, restore the
-        # original state and report failure.
-        saved_state = env.save_state()
-
-        outcome, reward = actor.cell.exit_thing(env, state, initial_reward,
-                                                actor, direction)
-        if outcome == Outcomes.NOT_DONE:
-            # Actor failed to move
-            return Outcomes.DONE, env.reward_map.get('MOVE:NO_EXIT', 0.0)
-        if not actor.at(*direction.next_cell(state.grid, target.x, target.y)):
-            # Actor did not make it into the target cell, so leave object
-            # where it is
-            return outcome, reward
-
-        outcome, reward = target.cell.exit_thing(env, state, reward,
-                                                 target, direction)
-        if (outcome == Outcomes.NOT_DONE) or target.at(actor.x, actor.y):
-            # Object didn't move.  Restore original state and exit
-            env.restore_state(saved_state)
-            return Outcomes.DONE, env.reward_map.get('MOVE:BLOCKED')
-        return outcomes.DONE, env.reward_map.get('MOVE')
+        # Nothing should be inside the wall
+        return Outcomes.NOT_DONE, initial_reward
             
     #### Manipulators ###
     def put(self, thing):
@@ -230,8 +228,7 @@ it cannot contain any objects."""
     def remove(self, thing):
         return
 
-
-class LimboCell(Cell):
+class LimboCell(WallCell):
     """Basic implementation of "limbo," a cell that represents "nowhere."
 When objects or actors are removed from the grid, they are located here.
 Limbo cells have the curious property that they cannot be entered or
@@ -242,4 +239,50 @@ rather than the general cell behaviors and properties, which are implemented
 to make the cell appear empty (so objects cannot be taken or dropped from it)
 and isolated (so actors and objects cannot enter or leave).
 """
-    pass
+    def __init__(self, grid = None):
+        WallCell.__init__(grid, -1, -1)
+
+    @property
+    def x(self):
+        return -1
+
+    @property
+    def y(self):
+        return -1
+
+    @property
+    def agent(self):
+        return None
+    
+    @property
+    def portable_object(self):
+        return None
+
+    @property
+    def movable_object(self):
+        return None
+
+    @property
+    def inventory(self):
+        return ()
+
+    @property
+    def objects(self):
+        return ()
+
+    @property
+    def actors(self):
+        return ()
+
+    @property
+    def real_inventory(self):
+        return self._inventory
+    
+    #### Manipulators ###
+    def put(self, thing):
+        if thing.container != self:
+            self._invnetory.append(thing)
+
+    def remove(self, thing):
+        if thing.container == self:
+            self._inventory.remove(thing)

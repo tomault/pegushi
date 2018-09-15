@@ -20,6 +20,12 @@ class Grid:
         self._boundary = boundary
         self._limbo = limbo
 
+        for c in cells:
+            c.set_grid(self)
+        self._boundary.set_grid(self)
+        self._limbo.set_grid(self)
+            
+
     @property
     def min_x(self):
         return 0

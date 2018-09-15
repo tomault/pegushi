@@ -95,7 +95,8 @@ class Agent:
                 target.container.remove(target)
                 target.set_container(self)
                 self._inventory = target
-                reward = env.reward_map.get('GET', None)
+                # Reward set by target.get()
+                #reward = env.reward_map.get('GET', None)
 
         return Outcomes.DONE, reward
     
@@ -116,7 +117,8 @@ class Agent:
                 self._cell.put(target)
                 target.set_container(self._cell)
                 self._inventory = None
-                reward = env.reward_map.get('DROP')
+                # reward set by target.drop()
+                #reward = env.reward_map.get('DROP')
 
         return Outcomes.DONE, reward
 
@@ -178,4 +180,3 @@ Agent._BEHAVIOR = ( Agent.wait, Agent.move_north, Agent.move_south,
                     Agent.push_west )
 assert len(Agent._BEHAVIOR_NAMES) == len(Agent._BEHAVIOR)
 Agent._BEHAVIOR_MAP = dict(zip(Agent.BEHAVIOR_NAMES, Agent._BEHAVIOR))
-
