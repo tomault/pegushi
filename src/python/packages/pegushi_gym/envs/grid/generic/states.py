@@ -2,6 +2,7 @@
 
 import gym.spaces.Tuple
 import pegushi_gym.envs.grid.generic.renderers.StandardGridRendererFactory
+import cPickle
 
 class State:
     """
@@ -54,9 +55,11 @@ environment
         return self._visible_state
     
     def reset(self):
-        self._grid = self._grid.reset()
-        self._agent = self._agent.reset(self._grid)
-        self._objects = [ o.reset() for o in self._objects ]
+        (self._agent, self._grid, self._objects) = \
+            cPickle.loads(self._initial_state)
+        self._is_terminal = False
+        self._visible_state = State(self._agent, self._grid,
+                                    tuple(o for o in objects if o.visible))
         return self
 
     def execute(self, env, action):
@@ -96,4 +99,8 @@ environment
 
         self._visible_state = State(self._agent, self._grid,
                                     tuple(o for o in objects if o.visible))
+
+        self._initial_state = \
+            cPickle.dumps((self._agent, self._grid, self._objects),
+                          cPickle.HIGHEST_PROTOCOL)
 
