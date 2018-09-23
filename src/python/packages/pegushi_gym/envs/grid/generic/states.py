@@ -31,7 +31,7 @@ World state with optional goal and methods needed to interact with the
 environment
 """
     def __init__(self, agent, grid, objects,
-                 renderer_factory = StandardGridRendererFactory):
+                 renderer_factory = StandardGridRendererFactory()):
         self._agent = agent
         self._grid = grid
         self._objects = objects
@@ -55,9 +55,7 @@ environment
         return self._visible_state
     
     def reset(self):
-        (self._agent, self._grid, self._objects) = \
-            cPickle.loads(self._initial_state)
-        self._is_terminal = False
+        self.restore(self._initialize_state)
         self._visible_state = State(self._agent, self._grid,
                                     tuple(o for o in objects if o.visible))
         return self
@@ -74,7 +72,17 @@ environment
 
     def set_terminal(self, value = True):
         self._is_terminal = True
-        
+
+    def save(self):
+        return cPickle.dumps((self._agent, self._grid, self._objects,
+                              self._is_terminal), cPickle.HIGHEST_PROTOCOL)
+
+    def restore(self, saved):
+        (self._agent, self._grid, self._objects, self._is_terminal) = \
+            cPickle.loads(saved)
+        self._visible_state = State(self._agent, self._grid,
+                                    tuple(o for o in objects if o.visible))
+
     def __getstate__(self):
         return (self._agent, self._grid, self._objects, self._is_terminal,
                 self._create_renderer)
@@ -100,7 +108,4 @@ environment
         self._visible_state = State(self._agent, self._grid,
                                     tuple(o for o in objects if o.visible))
 
-        self._initial_state = \
-            cPickle.dumps((self._agent, self._grid, self._objects),
-                          cPickle.HIGHEST_PROTOCOL)
-
+        self._initial_state = self.save()

@@ -32,7 +32,7 @@ class Grid:
 
     @property
     def max_x(self):
-        return self._cells.shape[1]
+        return self._cells.shape[1] - 1
 
     @property
     def min_y(self):
@@ -40,7 +40,7 @@ class Grid:
 
     @property:
     def max_y(self):
-        return self._cells.shape[0]
+        return self._cells.shape[0] - 1
 
     @property
     def width(self):
@@ -54,6 +54,10 @@ class Grid:
     def bounds(self):
         return ((0, 0), self._cells.shape)
 
+    @propery
+    def border_cell(self):
+        return self._boundary
+    
     @property
     def limbo(self):
         return self._limbo

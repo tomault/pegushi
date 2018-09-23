@@ -77,7 +77,7 @@ starting state, goal state and so on."""
         try:
             renderer = self._renderers[mode]
         except KeyError:
-            renderer = self._state.create_renderer(mode)
+            renderer = self._state.create_renderer(mode, self)
             self._renderers[mode] = renderer
         return renderer.render(self._state)
 
@@ -98,10 +98,10 @@ starting state, goal state and so on."""
         self._renderers = { }
 
     def save_state(self):
-        return cPickle.dumps(self.state, cPickle.HIGHEST_PROTOCOL)
+        return state.save()
 
     def restore_state(self, saved):
-        self._state = cPickle.loads(saved)
+        self._state.restore(saved)
         
     def _before_action(self, action):
         return action

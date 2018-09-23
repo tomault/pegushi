@@ -7,7 +7,7 @@ from pegushi_gym.envs.grid.generic.objects import Object
 
 class Cell:
     """Base cell implementation"""
-    def __init__(self, grid, x, y):
+    def __init__(self, grid, x, y, ansi_tile = '.'):
         self._grid = grid
         self._x = x
         self._y = y
@@ -15,6 +15,7 @@ class Cell:
         self._portable_object = None
         self._movable_object = None
         self._agent = None
+        self._ansi_tile = ansi_tile
 
     @property
     def type(self):
@@ -60,6 +61,9 @@ class Cell:
     def actors(self):
         return tuple(x for x in self._inventory if x.type == ThingTypes.ACTORS)
 
+    def ansi_tile(self):
+        return self._ansi_tile
+    
     def wait_actor(self, env, state, initial_reward, actor):
         return self._call_objects(Object.wait_actor, env, state,
                                   initial_reward, actor)
@@ -97,28 +101,9 @@ class Cell:
                                   actor, target, skip = target)
 
     def push(sef, env, state, initial_reward, actor, target, direction):
-        # Save the current state, then move the actor into the target's
-        # cell, followed by the target into the neighboring cell indicated
-        # by direction.  If the actor or target fails to move, restore the
-        # original state and report failure.
-        saved_state = env.save_state()
-
-        outcome, reward = actor.cell.exit_thing(env, state, initial_reward,
-                                                actor, direction)
-        if outcome == Outcomes.NOT_DONE:
-            # Actor failed to move
-            return Outcomes.DONE, env.reward_map.get('MOVE:NO_EXIT', 0.0)
-        if actor.cell != direction.next_cell(state.grid, target.x, target.y):
-            # Actor did not make it into the target cell, so leave object
-            # where it is
-            return outcome, reward
-
-        outcome, reward = target.cell.exit_thing(env, state, reward,
-                                                 target, direction)
-        if (outcome == Outcomes.NOT_DONE) or (target.cell == actor.cell):
-            # Object didn't move.  Restore original state and exit
-            env.restore_state(saved_state)
-            return Outcomes.DONE, env.reward_map.get('MOVE:BLOCKED')
+        return self._call_objects(Object.get, env, state, initial_reward,
+                                  actor, target, skip = target)
+    
         return outcomes.DONE, env.reward_map.get('MOVE')
             
     #### Manipulators ###
@@ -139,9 +124,7 @@ class Cell:
         self._grid = g
 
     def clone(self, x, y):
-        new_cell = self.__class__(self._grid, x, y)
-        new_cell._clone_inventory(self._inventory)
-        return new_cell
+        return self.__class__(self._grid, x, y)
     
     def _call_objects(self, behavior, env, state, initial_reward, *args,
                       skip = None):
@@ -180,11 +163,6 @@ class Cell:
             self._movable_object = obj
         self._inventory.append(obj)
 
-    def _clone_inventory(self, objects):
-        for cloned in (o.clone for o in objects):
-            self.put(cloned)
-            cloned.set_container(self)
-
 Cell._PUT_HANDLER_MAP = { ThingType.AGENT : Cell._put_agent,
                           ThingType.ACTOR : Cell._put_actor,
                           ThingType.CELL : Cell._put_cell,
@@ -193,6 +171,8 @@ Cell._PUT_HANDLER_MAP = { ThingType.AGENT : Cell._put_agent,
 class WallCell(Cell):
     """Cell type representing a wall.  Actors cannot enter this cell and
 it cannot contain any objects."""
+    def __init__(self, grid, x, y, ansi_tile = '#'):
+        Cell.__init__(self, grid, x, y, ansi_tile)
     
     def wait_actor(self, env, state, initial_reward, actor):
         # Nothing should be inside a wall
@@ -240,7 +220,7 @@ to make the cell appear empty (so objects cannot be taken or dropped from it)
 and isolated (so actors and objects cannot enter or leave).
 """
     def __init__(self, grid = None):
-        WallCell.__init__(grid, -1, -1)
+        WallCell.__init__(grid, -1, -1, ' ')
 
     @property
     def x(self):

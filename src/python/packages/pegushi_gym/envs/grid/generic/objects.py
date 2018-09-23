@@ -5,12 +5,13 @@ from pegushi_gum.envs.grid.generic.core import Outcomes, ThingTypes
 
 class Object:
     def __init__(self, name, container, is_portable = False,
-                 is_movable = False, is_visible = True):
+                 is_movable = False, is_visible = True, ansi_tile = '?'):
         self._name = name
         self._container = container
         self._is_portable = is_portable
         self._is_movable = is_movable
         self._is_visible = is_visible
+        self._ansi_tile = ansi_tile
 
     @property
     def type(self):
@@ -50,6 +51,9 @@ class Object:
 
     def at(self, x, y):
         return (self._x == x) and (self._y == y)
+
+    def ansi_tile(self):
+        return self._ansi_tile
     
     def wait_actor(self, env, state, initial_reward, actor):
         return Outcomes.NOT_DONE, initial_reward
@@ -63,18 +67,37 @@ class Object:
 
     def get(self, env, state, initial_reward, actor, target):
         if target == self:
-            reward = env.reward_map.get('GET:OBJECT[%s]' % self._name, 0.0)
+            return self._container.get(env, state, initial_reward, actor,
+                                       target)
         else:
-            reward = initial_reward
-        return Outcomes.NOT_DONE, reward
+            return self._get_other(env, state, initial_reward, actor, target)
 
     def drop(self, env, state, initial_reward, actor, target):
-        return Outcomes.NOT_DONE, initial_reward
+        if target == self:
+            return self._container.get(env, state, initial_reward, actor,
+                                       target)
+        else:
+            return self._drop_other(env, state, initial_reward, actor, target)
 
     def push(self, env, state, initial_reward, actor, target, direction):
-        return Outcomes.NOT_DONE, initial_reward
-    
+        if target == self:
+            return self._container.push(env, state, initial_reward, actor,
+                                        target, direction)
+        else:
+            return self._push_other(env, state, initial_reward, actor, target,
+                                    direction)
 
     # Manipulators
     def set_container(self, c):
         self._container = c
+
+    def _get_other(self, env, state, initial_reward, actor, target):
+        return Outcomes.NOT_DONE, initial_reward
+
+    def _drop_other(self, env, state, initial_reward, actor, target):
+        return Outcomes.NOT_DONE, initial_reward
+
+    def _push_other(self, env, state, initial_reward, actor, target,
+                    direction):
+        return Outcomes.NOT_DONE, initial_reward
+
