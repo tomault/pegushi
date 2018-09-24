@@ -91,9 +91,11 @@ go = True
 num_frames = 0
 num_loops = 0
 next_update_time = 0
-next_update_delta = 1.0/480.0
+next_update_delta = 1.0/240.0
 (pegu_x, pegu_y) = path_pixels[0]
 next_path = 1
+
+pyglet.gl.glPushMatrix()
 
 while go:
     window.switch_to()
