@@ -1,7 +1,8 @@
 """
 Implementation of agents for the generic gridworld.
 """
-from pegushi_gum.envs.grid.generic.core import Outcomes, ThingTypes, Directions
+from pegushi_gym.envs.grid.generic.core import Outcomes, ThingTypes, Directions
+from pegushi_gym.envs.grid.generic.rewards import eval_if_needed
 import gym.spaces
 
 class Agent:
@@ -52,30 +53,29 @@ class Agent:
 
     def wait(self, env, state, initial_reward):
         outcome, reward = self._cell.wait_actor(env, state, reward, self)
-        if outcome == Outcomes.NOT_DONE:
-            reward = env.reward_map.get('WAIT', 0.0)
+        reward = eval_if_needed(reward, lambda: env.reward_map.get('WAIT', 0.0))
         return Outcomes.DONE, reward
     
     def move_north(self, env, state, initial_reward):
-        return self._move(self._BEHAVIOR_NAMES[1], env, state, initial_reward,
+        return self._move('MOVE:NORTH', env, state, initial_reward,
                           Directions.NORTH)
 
     def move_east(self, env, state, initial_reward):
-        return self._move(self._BEHAVIOR_NAMES[2], env, state, initial_reward,
+        return self._move('MOVE:EAST', env, state, initial_reward,
                           Directions.EAST)
 
     def move_south(self, env, state, initial_reward):
-        return self._move(self._BEHAVIOR_NAMES[3], env, state, initial_reward,
+        return self._move('MOVE:SOUTH', env, state, initial_reward,
                           Directions.SOUTH)
 
     def move_west(self, env, state, initial_reward):
-        return self._move(self._BEHAVIOR_NAMES[4], env, state, initial_reward,
+        return self._move('MOVE:WEST', env, state, initial_reward,
                           Directions.WEST)
 
     def get(self, env, state, initial_reward):
         target = self._cell.portable_object
         if not target:
-            reward = env.reward_map.get('GET:NO_OBJECT', 0.0)
+            reward = find_reward(env, 0.0, 'GET:NO_OBJECT')
         else:
             outcome, reward = target.get(env, state, initial_reward, self,
                                          target)
@@ -83,13 +83,18 @@ class Agent:
                 return outcome, reward
 
             if self._inventory:
-                reward = env.reward_map.get('GET:FULL', 0.0)
+                reward = \
+                    eval_if_needed(reward,
+                                   lambda: find_reward(env, 0.0, 'GET:FULL')
             else:
                 target.container.remove(target)
                 target.set_container(self)
                 self._inventory = target
-                reward = env.reward_map.get('GET:OBJECT[%s]' % target.name,
-                                            reward)
+                default_reward = \
+                    lambda: find_reward(env, 0.0,
+                                        'GET:OBJECT[%s]' % target.name,
+                                        'GET:OBJECT', 'GET')
+                reward = eval_if_needed(reward, default_reward)
 
         return Outcomes.DONE, reward
     
