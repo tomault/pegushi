@@ -83,18 +83,13 @@ class Agent:
                 return outcome, reward
 
             if self._inventory:
-                reward = \
-                    eval_if_needed(reward,
-                                   lambda: find_reward(env, 0.0, 'GET:FULL')
+                reward = find_reward(env, 0.0, 'GET:FULL')
             else:
                 target.container.remove(target)
                 target.set_container(self)
                 self._inventory = target
-                default_reward = \
-                    lambda: find_reward(env, 0.0,
-                                        'GET:OBJECT[%s]' % target.name,
-                                        'GET:OBJECT', 'GET')
-                reward = eval_if_needed(reward, default_reward)
+                reward = target.reward_for_get(env, state, initial_reward,
+                                               self)
 
         return Outcomes.DONE, reward
     
@@ -111,7 +106,8 @@ class Agent:
                 self._cell.put(target)
                 target.set_container(self._cell)
                 self.remove(target)
-                reward = env.reward_map.get('DROP', reward)
+                reward = target.reward_for_drop(env, state, initial_reward,
+                                                self)
 
         return Outcomes.DONE, reward
 
@@ -146,7 +142,7 @@ class Agent:
             self._inventory = None
 
     def _move(self, behavior_name, env, state, initial_reward, direction):
-        outcome, reward = self._cell.exit_actor(env, state, initial_reward,
+        outcome, reward = self._cell.exit_thing(env, state, initial_reward,
                                                 self, direction)
         if outcome == Outcomes.NOT_DONE:
             # Can't go this way
@@ -188,10 +184,12 @@ class Agent:
         if (outcome == Outcomes.NOT_DONE) or (target.cell == actor.cell):
             # Object didn't move.  Restore original state and exit
             env.restore_state(saved_state)
-            return Outcomes.DONE, env.reward_map.get('MOVE:BLOCKED')
+            if outcome == Outcomes.NOT_DONE:
+                reward = env.reward_map.get('PUSH:BLOCKED')
+            return Outcomes.DONE, reward
 
         # Both object and actor moved into the expected cells
-        reward = env.reward_map.get(behavior_name, reward)
+        reward = target.reward_for_push(env, state, reward, self, direction)
         return Outcomes.DONE, reward
         
 Agent._BEHAVIOR = ( Agent.wait, Agent.move_north, Agent.move_south,
